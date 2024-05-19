@@ -45,8 +45,10 @@ start_time = time.time()
 print(f"Recording started at {time.strftime('%X')}")
 
 # Display countdown
-
-
+print("Get ready")
+for i in range(3, 0, -1):
+    print(f"{i}...", end='', flush=True)
+    time.sleep(countdown_interval / 1000)  # Pause for the specified interval
 print("\nRecording...")
 
 # Record audio for the given number of seconds
@@ -64,7 +66,7 @@ print(f"\nRecording completed at {time.strftime('%X')}. Elapsed time: {elapsed_t
 print("Saving recording...")
 write("recording0.wav", freq, recording)
 
-# Convert the NumPy array to an audio file
-wv.write("recording1.wav", recording, freq, sampwidth=2)
+# # Convert the NumPy array to an audio file
+# wv.write("recording1.wav", recording, freq, sampwidth=2)
 
 print("Recording saved successfully.")
