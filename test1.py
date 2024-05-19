@@ -1,37 +1,45 @@
-from pydub import AudioSegment
-import pygame
+from transformers import WhisperProcessor, WhisperForConditionalGeneration
+from datasets import load_dataset
+import sounddevice as sd
+import numpy as np
+import os
 
-def play_in_ear(ear):
-    # Load audio files for left and right ears
-    left_audio = AudioSegment.from_wav("left_ear_digits.wav")
-    right_audio = AudioSegment.from_wav("right_ear_digits.wav")
+# Function to record audio
+def record_audio(duration=5, filename='recorded_audio.wav'):
+    fs = 16000  # Sample rate
+    seconds = duration  # Duration of recording
 
-    # Select the audio based on the ear parameter
-    if ear == "left":
-        selected_audio = left_audio
-    elif ear == "right":
-        selected_audio = right_audio
-    else:
-        raise ValueError("Invalid ear selection. Choose 'left' or 'right'.")
+    print(f"Recording for {seconds} seconds...")
+    myrecording = sd.rec(int(seconds * fs), samplerate=fs, channels=1)
+    sd.wait()  # Wait until recording is done
+    print("Finished recording.")
+    
+    buffer = io.BytesIO()
+    np.save(buffer, myrecording)
+    buffer.seek(0)
+    with open(filename, 'wb') as f:
+        f.write(buffer.getvalue())
+    print(f"Saved recording to {filename}")
 
-    # Convert the selected audio to mono (optional, depending on your needs)
-    selected_audio = selected_audio.set_channels(1)
+# Record audio
+record_audio()
 
-    # Initialize pygame mixer
-    pygame.mixer.init()
+# Load model and processor
+processor = WhisperProcessor.from_pretrained("openai/whisper-tiny")
+model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-tiny")
+model.config.forced_decoder_ids = None
 
-    # Create a temporary file to store the selected audio
-    temp_file_path = "temp_audio.wav"
-    selected_audio.export(temp_file_path, format="wav")
+# Read the recorded audio file
+with open('recorded_audio.wav', 'rb') as f:
+    audio_bytes = f.read()
 
-    # Play the selected audio
-    pygame.mixer.music.load(temp_file_path)
-    pygame.mixer.music.play()
+# Process the audio bytes
+input_features = processor(audio_bytes, sampling_rate=16000, return_tensors="pt").input_features
 
-    while pygame.mixer.music.get_busy():
-        pygame.time.Clock().tick(10)
+# Generate token IDs
+predicted_ids = model.generate(input_features)
 
-    pygame.quit()
+# Decode token IDs to text
+transcription = processor.batch_decode(predicted_ids, skip_special_tokens=True)
 
-# Example usage
-play_in_ear("left")  # Change to "right" to play in the right ear
+print(transcription)
